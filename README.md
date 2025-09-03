@@ -40,6 +40,9 @@ ASANA_PERSONAL_ACCESS_TOKEN=your_token_here
 # List your workspaces to get workspace GIDs
 utka workspace list
 
+# List projects in a workspace
+utka project list --workspace <workspace_gid>
+
 # List webhooks in a workspace
 utka webhook list --workspace <workspace_gid>
 
@@ -62,6 +65,30 @@ utka workspace list
 
 # Get detailed information about a specific workspace
 utka workspace get --gid <workspace_gid>
+```
+
+### Project Commands
+
+List and manage projects within workspaces or teams:
+
+```bash
+# List all active projects in a workspace
+utka project list --workspace <workspace_gid>
+
+# List projects in a specific team
+utka project list --team <team_gid>
+
+# Include archived projects
+utka project list --workspace <workspace_gid> --archived
+
+# Limit the number of results
+utka project list --workspace <workspace_gid> --limit 10
+
+# Output as JSON for processing
+utka project list --workspace <workspace_gid> --json
+
+# Get detailed information about a specific project
+utka project get --gid <project_gid>
 ```
 
 ### Webhook Commands
@@ -117,18 +144,41 @@ The Asana Events API uses sync tokens to track your position in the event stream
 
 ## Examples
 
-### Setting up a Webhook
+### Working with Projects
 
 ```bash
 # 1. Get your workspace GID
 utka workspace list
 # Output: • My Workspace (Organization) - GID: 1234567890
 
+# 2. List all projects in the workspace
+utka project list --workspace 1234567890
+# Output: 
+# Found 3 project(s):
+# 
+# • Marketing Campaign 2024
+#   GID: 2345678901
+#   Color: light-green
+#   Owner: John Doe
+#   Status: On Track (green)
+#   Due: 2024-12-31
+
+# 3. Get detailed info about a specific project
+utka project get --gid 2345678901
+```
+
+### Setting up a Webhook
+
+```bash
+# 1. Get your workspace and project GIDs
+utka workspace list
+utka project list --workspace <workspace_gid>
+
 # 2. Create a webhook for a project
 utka webhook create --resource <project_gid> --target https://your-server.com/webhook
 
 # 3. Verify the webhook was created
-utka webhook list --workspace 1234567890
+utka webhook list --workspace <workspace_gid>
 ```
 
 ### Monitoring Project Events
