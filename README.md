@@ -43,14 +43,17 @@ utka workspace list
 # List projects in a workspace
 utka project list --workspace <workspace_gid>
 
+# List tasks in a project
+utka task list --project <project_gid>
+
 # List webhooks in a workspace
 utka webhook list --workspace <workspace_gid>
 
 # Initialize sync token for a resource (project, task, etc.)
-utka events sync --resource <resource_gid>
+utka events sync --gid <resource_gid>
 
 # Get events using the sync token
-utka events get --resource <resource_gid> --sync <sync_token>
+utka events get --gid <resource_gid> --sync <sync_token>
 ```
 
 ## Commands
@@ -91,6 +94,41 @@ utka project list --workspace <workspace_gid> --json
 utka project get --gid <project_gid>
 ```
 
+### Task Commands
+
+List and manage tasks within projects, sections, or by assignee:
+
+```bash
+# List all incomplete tasks in a project
+utka task list --project <project_gid>
+
+# Include completed tasks
+utka task list --project <project_gid> --completed
+
+# List tasks in a specific section
+utka task list --section <section_gid>
+
+# List tasks assigned to a user in a workspace
+utka task list --assignee <user_gid> --workspace <workspace_gid>
+
+# Limit the number of results
+utka task list --project <project_gid> --limit 20
+
+# Output as JSON for processing
+utka task list --project <project_gid> --json
+
+# Get detailed information about a specific task
+utka task get --gid <task_gid>
+```
+
+The task list displays:
+- Completion status with checkboxes
+- Task name and type (milestone/subtasks)
+- Assignee and due dates
+- Tags with colors
+- Notes (truncated)
+- Section grouping when available
+
 ### Webhook Commands
 
 Manage Asana webhooks for real-time notifications:
@@ -120,18 +158,18 @@ Monitor and retrieve events from Asana resources. The Events API requires sync t
 ```bash
 # Initialize sync token for a resource (required for first-time use)
 # This handles the "Sync token invalid or too old" error
-utka events sync --resource <resource_gid>
+utka events sync --gid <resource_gid>
 
 # Get events for any resource (project, task, portfolio, etc.)
-utka events get --resource <resource_gid>
+utka events get --gid <resource_gid>
 
 # Get events with a sync token (for incremental updates)
-utka events get --resource <resource_gid> --sync <sync_token>
+utka events get --gid <resource_gid> --sync <sync_token>
 
 # Poll events continuously (real-time monitoring)
-utka events poll --resource <resource_gid>                      # Default 5s interval
-utka events poll --resource <resource_gid> --interval 10s       # Custom interval
-utka events poll --resource <resource_gid> --sync <sync_token>  # Start from sync point
+utka events poll --gid <resource_gid>                      # Default 5s interval
+utka events poll --gid <resource_gid> --interval 10s       # Custom interval
+utka events poll --gid <resource_gid> --sync <sync_token>  # Start from sync point
 ```
 
 #### Understanding Sync Tokens
@@ -144,7 +182,7 @@ The Asana Events API uses sync tokens to track your position in the event stream
 
 ## Examples
 
-### Working with Projects
+### Working with Projects and Tasks
 
 ```bash
 # 1. Get your workspace GID
@@ -163,8 +201,24 @@ utka project list --workspace 1234567890
 #   Status: On Track (green)
 #   Due: 2024-12-31
 
-# 3. Get detailed info about a specific project
-utka project get --gid 2345678901
+# 3. List tasks in the project
+utka task list --project 2345678901
+# Output:
+# Found 5 task(s):
+#
+# [ ] Design landing page
+#     GID: 3456789012
+#     Assignee: Jane Smith
+#     Due: 2024-11-15
+#     Tags: design (red), high-priority (orange)
+#
+# [✓] Write copy for campaign
+#     GID: 3456789013
+#     Assignee: Bob Johnson
+#     Completed: 2024-11-01 by Bob Johnson
+
+# 4. Get detailed info about a specific task
+utka task get --gid 3456789012
 ```
 
 ### Setting up a Webhook
@@ -185,25 +239,25 @@ utka webhook list --workspace <workspace_gid>
 
 ```bash
 # 1. Initialize sync for a project
-utka events sync --resource <project_gid>
+utka events sync --gid <project_gid>
 # Output: New sync token: d1f4b7c3...
 
 # 2. Get current events
-utka events get --resource <project_gid> --sync d1f4b7c3...
+utka events get --gid <project_gid> --sync d1f4b7c3...
 
 # 3. Poll for new events in real-time
-utka events poll --resource <project_gid> --interval 3s --sync d1f4b7c3...
+utka events poll --gid <project_gid> --interval 3s --sync d1f4b7c3...
 ```
 
 ### Working with Tasks
 
 ```bash
 # Get task events
-utka events sync --resource <task_gid>
-utka events get --resource <task_gid> --sync <token>
+utka events sync --gid <task_gid>
+utka events get --gid <task_gid> --sync <token>
 
 # Monitor task changes
-utka events poll --resource <task_gid> --interval 2s
+utka events poll --gid <task_gid> --interval 2s
 ```
 
 ## Troubleshooting
@@ -214,10 +268,10 @@ This error occurs when your sync token has expired or is invalid. To fix:
 
 ```bash
 # Reinitialize the sync token
-utka events sync --resource <resource_gid>
+utka events sync --gid <resource_gid>
 
 # Use the new token for subsequent requests
-utka events get --resource <resource_gid> --sync <new_token>
+utka events get --gid <resource_gid> --sync <new_token>
 ```
 
 ### "You should specify one of workspace" Error
