@@ -247,3 +247,108 @@ func (tm *TaskManager) Get(taskGID string) (*Task, error) {
 
 	return response.Data, nil
 }
+
+type TaskUpdate struct {
+	Name         *string                `json:"name,omitempty"`
+	Notes        *string                `json:"notes,omitempty"`
+	HTMLNotes    *string                `json:"html_notes,omitempty"`
+	Completed    *bool                  `json:"completed,omitempty"`
+	DueOn        *string                `json:"due_on,omitempty"`
+	DueAt        *string                `json:"due_at,omitempty"`
+	StartOn      *string                `json:"start_on,omitempty"`
+	StartAt      *string                `json:"start_at,omitempty"`
+	Assignee     *string                `json:"assignee,omitempty"`
+	Parent       *string                `json:"parent,omitempty"`
+	Projects     []string               `json:"projects,omitempty"`
+	Followers    []string               `json:"followers,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`
+	CustomFields map[string]interface{} `json:"custom_fields,omitempty"`
+}
+
+type TaskUpdateRequest struct {
+	Data *TaskUpdate `json:"data"`
+}
+
+func (tm *TaskManager) Update(taskGID string, update *TaskUpdate) (*Task, error) {
+	endpoint := fmt.Sprintf("/tasks/%s", taskGID)
+
+	reqBody := TaskUpdateRequest{Data: update}
+	respBody, err := tm.client.Put(endpoint, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update task: %w", err)
+	}
+
+	var response TaskResponse
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return response.Data, nil
+}
+
+func (tm *TaskManager) Complete(taskGID string) (*Task, error) {
+	completed := true
+	return tm.Update(taskGID, &TaskUpdate{Completed: &completed})
+}
+
+func (tm *TaskManager) Uncomplete(taskGID string) (*Task, error) {
+	completed := false
+	return tm.Update(taskGID, &TaskUpdate{Completed: &completed})
+}
+
+func (tm *TaskManager) SetAssignee(taskGID string, assigneeGID string) (*Task, error) {
+	return tm.Update(taskGID, &TaskUpdate{Assignee: &assigneeGID})
+}
+
+func (tm *TaskManager) SetDueDate(taskGID string, dueDate string) (*Task, error) {
+	// If dueDate is empty, it will remove the due date
+	var dueDatePtr *string
+	if dueDate != "" {
+		dueDatePtr = &dueDate
+	}
+	return tm.Update(taskGID, &TaskUpdate{DueOn: dueDatePtr})
+}
+
+func (tm *TaskManager) AddToProject(taskGID string, projectGID string) (*Task, error) {
+	endpoint := fmt.Sprintf("/tasks/%s/addProject", taskGID)
+
+	reqBody := map[string]interface{}{
+		"data": map[string]string{
+			"project": projectGID,
+		},
+	}
+
+	respBody, err := tm.client.Post(endpoint, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add task to project: %w", err)
+	}
+
+	var response TaskResponse
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return response.Data, nil
+}
+
+func (tm *TaskManager) RemoveFromProject(taskGID string, projectGID string) (*Task, error) {
+	endpoint := fmt.Sprintf("/tasks/%s/removeProject", taskGID)
+
+	reqBody := map[string]interface{}{
+		"data": map[string]string{
+			"project": projectGID,
+		},
+	}
+
+	respBody, err := tm.client.Post(endpoint, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove task from project: %w", err)
+	}
+
+	var response TaskResponse
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return response.Data, nil
+}

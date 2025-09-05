@@ -205,6 +205,123 @@ var taskGetCmd = &cobra.Command{
 	},
 }
 
+var taskEditCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Edit a task",
+	Long:  `Update task properties like name, notes, assignee, due date, etc.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		gid, _ := cmd.Flags().GetString("gid")
+		if gid == "" {
+			log.Fatal("Task GID is required")
+		}
+
+		// Build update struct with only the fields that were provided
+		update := &tasks.TaskUpdate{}
+		hasUpdate := false
+
+		if cmd.Flags().Changed("name") {
+			name, _ := cmd.Flags().GetString("name")
+			update.Name = &name
+			hasUpdate = true
+		}
+
+		if cmd.Flags().Changed("notes") {
+			notes, _ := cmd.Flags().GetString("notes")
+			update.Notes = &notes
+			hasUpdate = true
+		}
+
+		if cmd.Flags().Changed("assignee") {
+			assignee, _ := cmd.Flags().GetString("assignee")
+			update.Assignee = &assignee
+			hasUpdate = true
+		}
+
+		if cmd.Flags().Changed("due-date") {
+			dueDate, _ := cmd.Flags().GetString("due-date")
+			update.DueOn = &dueDate
+			hasUpdate = true
+		}
+
+		if cmd.Flags().Changed("start-date") {
+			startDate, _ := cmd.Flags().GetString("start-date")
+			update.StartOn = &startDate
+			hasUpdate = true
+		}
+
+		if cmd.Flags().Changed("completed") {
+			completed, _ := cmd.Flags().GetBool("completed")
+			update.Completed = &completed
+			hasUpdate = true
+		}
+
+		if cmd.Flags().Changed("tags") {
+			tags, _ := cmd.Flags().GetStringSlice("tags")
+			update.Tags = tags
+			hasUpdate = true
+		}
+
+		if !hasUpdate {
+			log.Fatal("No updates specified. Use flags to specify what to update.")
+		}
+
+		task, err := taskManager.Update(gid, update)
+		if err != nil {
+			log.Fatalf("Failed to update task: %v", err)
+		}
+
+		fmt.Printf("✓ Task updated successfully\n")
+		fmt.Printf("  Name: %s\n", task.Name)
+		if task.Assignee != nil {
+			fmt.Printf("  Assignee: %s\n", task.Assignee.Name)
+		}
+		if task.DueOn != "" {
+			fmt.Printf("  Due: %s\n", task.DueOn)
+		}
+		if task.Completed {
+			fmt.Printf("  Status: Completed\n")
+		}
+	},
+}
+
+var taskCompleteCmd = &cobra.Command{
+	Use:   "complete",
+	Short: "Mark a task as complete",
+	Long:  `Mark a task as complete.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		gid, _ := cmd.Flags().GetString("gid")
+		if gid == "" {
+			log.Fatal("Task GID is required")
+		}
+
+		task, err := taskManager.Complete(gid)
+		if err != nil {
+			log.Fatalf("Failed to complete task: %v", err)
+		}
+
+		fmt.Printf("✓ Task completed: %s\n", task.Name)
+	},
+}
+
+var taskUncompleteCmd = &cobra.Command{
+	Use:   "uncomplete",
+	Short: "Mark a task as incomplete",
+	Long:  `Mark a completed task as incomplete.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		gid, _ := cmd.Flags().GetString("gid")
+		if gid == "" {
+			log.Fatal("Task GID is required")
+		}
+
+		task, err := taskManager.Uncomplete(gid)
+		if err != nil {
+			log.Fatalf("Failed to uncomplete task: %v", err)
+		}
+
+		fmt.Printf("✓ Task marked as incomplete: %s\n", task.Name)
+	},
+}
+
 func init() {
 	taskListCmd.Flags().String("project", "", "Project GID")
 	taskListCmd.Flags().String("section", "", "Section GID")
@@ -217,8 +334,27 @@ func init() {
 	taskGetCmd.Flags().String("gid", "", "Task GID")
 	taskGetCmd.MarkFlagRequired("gid")
 
+	taskEditCmd.Flags().String("gid", "", "Task GID")
+	taskEditCmd.Flags().String("name", "", "Task name")
+	taskEditCmd.Flags().String("notes", "", "Task notes")
+	taskEditCmd.Flags().String("assignee", "", "Assignee GID (use 'null' to unassign)")
+	taskEditCmd.Flags().String("due-date", "", "Due date (YYYY-MM-DD format, or 'null' to remove)")
+	taskEditCmd.Flags().String("start-date", "", "Start date (YYYY-MM-DD format)")
+	taskEditCmd.Flags().Bool("completed", false, "Mark as completed")
+	taskEditCmd.Flags().StringSlice("tags", nil, "Tag GIDs (comma-separated)")
+	taskEditCmd.MarkFlagRequired("gid")
+
+	taskCompleteCmd.Flags().String("gid", "", "Task GID")
+	taskCompleteCmd.MarkFlagRequired("gid")
+
+	taskUncompleteCmd.Flags().String("gid", "", "Task GID")
+	taskUncompleteCmd.MarkFlagRequired("gid")
+
 	taskCmd.AddCommand(taskListCmd)
 	taskCmd.AddCommand(taskGetCmd)
+	taskCmd.AddCommand(taskEditCmd)
+	taskCmd.AddCommand(taskCompleteCmd)
+	taskCmd.AddCommand(taskUncompleteCmd)
 
 	rootCmd.AddCommand(taskCmd)
 }

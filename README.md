@@ -96,7 +96,7 @@ utka project get --gid <project_gid>
 
 ### Task Commands
 
-List and manage tasks within projects, sections, or by assignee:
+List, manage, and edit tasks within projects:
 
 ```bash
 # List all incomplete tasks in a project
@@ -111,14 +111,22 @@ utka task list --section <section_gid>
 # List tasks assigned to a user in a workspace
 utka task list --assignee <user_gid> --workspace <workspace_gid>
 
-# Limit the number of results
-utka task list --project <project_gid> --limit 20
-
-# Output as JSON for processing
-utka task list --project <project_gid> --json
-
 # Get detailed information about a specific task
 utka task get --gid <task_gid>
+
+# Edit task properties
+utka task edit --gid <task_gid> --name "New task name"
+utka task edit --gid <task_gid> --notes "Updated notes"
+utka task edit --gid <task_gid> --assignee <user_gid>
+utka task edit --gid <task_gid> --due-date 2024-12-31
+utka task edit --gid <task_gid> --due-date null  # Remove due date
+
+# Edit multiple properties at once
+utka task edit --gid <task_gid> --name "New name" --assignee <user_gid> --due-date 2024-12-31
+
+# Mark task as complete/incomplete
+utka task complete --gid <task_gid>
+utka task uncomplete --gid <task_gid>
 ```
 
 The task list displays:
@@ -252,6 +260,16 @@ utka events poll --gid <project_gid> --interval 3s --sync d1f4b7c3...
 ### Working with Tasks
 
 ```bash
+# Edit a task
+utka task edit --gid 3456789012 --name "Update landing page design" --due-date 2024-11-20
+# Output: ✓ Task updated successfully
+#   Name: Update landing page design
+#   Due: 2024-11-20
+
+# Complete a task
+utka task complete --gid 3456789012
+# Output: ✓ Task completed: Update landing page design
+
 # Get task events
 utka events sync --gid <task_gid>
 utka events get --gid <task_gid> --sync <token>
