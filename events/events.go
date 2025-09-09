@@ -89,6 +89,26 @@ func (em *EventManager) GetByResource(resourceGID string, syncToken string) (*Ev
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	// If there are more events, fetch them all using the sync token
+	for response.HasMore && response.Sync != "" {
+		params.Set("sync", response.Sync)
+
+		respBody, err := em.client.Get(endpoint, params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get next page of events: %w", err)
+		}
+
+		var nextResponse EventsResponse
+		if err := json.Unmarshal(respBody, &nextResponse); err != nil {
+			return nil, fmt.Errorf("failed to parse next page response: %w", err)
+		}
+
+		// Append the new events to our existing response
+		response.Data = append(response.Data, nextResponse.Data...)
+		response.HasMore = nextResponse.HasMore
+		response.Sync = nextResponse.Sync
+	}
+
 	return &response, nil
 }
 
