@@ -110,3 +110,15 @@ func (c *Client) GetAccessToken() string {
 func (c *Client) GetBaseURL() string {
 	return c.baseURL
 }
+
+func (c *Client) SetBaseURL(url string) {
+	c.baseURL = url
+}
+
+func (c *Client) SetAccessToken(token string) {
+	c.accessToken = token
+}
+
+func (c *Client) SetHTTPClient(httpClient *http.Client) {
+	c.httpClient = httpClient
+}
