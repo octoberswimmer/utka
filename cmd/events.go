@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/expr-lang/expr"
+	eventsLib "github.com/octoberswimmer/utka/events"
 	"github.com/spf13/cobra"
 )
 
@@ -19,11 +22,23 @@ var eventsGetCmd = &cobra.Command{
 	Short: "Get events for a resource",
 	Long: `Retrieve events for a specific resource with optional sync token.
 
-If you get a 'Sync token invalid or too old' error, omit the --sync flag to fetch 
-the full dataset and get a new sync token.`,
+If you get a 'Sync token invalid or too old' error, omit the --sync flag to fetch
+the full dataset and get a new sync token.
+
+You can filter events using an expression with the -f flag. The expression has access
+to the 'event' variable with all its fields. Examples:
+  -f 'event.action == "changed"'
+  -f 'event.action == "changed" && event.resource.resource_subtype == "default_task"'
+  -f 'event.change.field == "name"'
+  -f 'event.user.name == "John Doe"'
+  -f 'event.action == "changed" && event.change.new_value.gid == "1210930954402852"'
+  -f 'event.change.new_value.display_value == "Client Meeting or Introduction"'
+
+Note: The filter will skip events where the expression cannot be evaluated.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		resource, _ := cmd.Flags().GetString("gid")
 		syncToken, _ := cmd.Flags().GetString("sync")
+		filterExpr, _ := cmd.Flags().GetString("filter")
 
 		if resource == "" {
 			log.Fatal("Resource GID is required")
@@ -32,6 +47,40 @@ the full dataset and get a new sync token.`,
 		events, err := eventManager.GetByResource(resource, syncToken)
 		if err != nil {
 			log.Fatalf("Failed to get events: %v", err)
+		}
+
+		// Apply filter if provided
+		if filterExpr != "" {
+			// Compile the expression without type checking to work with dynamic maps
+			program, err := expr.Compile(filterExpr, expr.AsBool())
+			if err != nil {
+				log.Fatalf("Failed to compile filter expression: %v", err)
+			}
+
+			var filteredEvents []eventsLib.Event
+			for _, event := range events.Data {
+				// Convert event to a map for safer field access
+				eventJSON, _ := json.Marshal(event)
+				var eventMap map[string]interface{}
+				json.Unmarshal(eventJSON, &eventMap)
+
+				env := map[string]interface{}{
+					"event": eventMap,
+				}
+
+				result, err := expr.Run(program, env)
+				if err != nil {
+					// Skip events that cause evaluation errors
+					continue
+				}
+
+				if result == true {
+					filteredEvents = append(filteredEvents, event)
+				}
+			}
+
+			// Update response with filtered events
+			events.Data = filteredEvents
 		}
 
 		printJSON(events)
@@ -104,6 +153,7 @@ and return a fresh sync token for future polling.`,
 func init() {
 	eventsGetCmd.Flags().String("gid", "", "Resource GID (project, task, portfolio, etc.)")
 	eventsGetCmd.Flags().String("sync", "", "Sync token")
+	eventsGetCmd.Flags().StringP("filter", "f", "", "Filter expression to apply to events")
 	eventsGetCmd.MarkFlagRequired("gid")
 
 	eventsSyncCmd.Flags().String("gid", "", "Resource GID (project, task, portfolio, etc.)")

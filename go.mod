@@ -3,6 +3,7 @@ module github.com/octoberswimmer/utka
 go 1.24.6
 
 require (
+	github.com/expr-lang/expr v1.17.6
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.10.1
 )
