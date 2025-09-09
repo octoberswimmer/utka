@@ -161,24 +161,56 @@ utka webhook update --gid <webhook_gid>
 
 ### Event Commands
 
-Monitor and retrieve events from Asana resources. The Events API requires sync tokens for proper pagination.
+Monitor and retrieve events from Asana resources. The Events API requires sync tokens for proper pagination. The `events get` command automatically fetches all pages when more events are available.
 
 ```bash
 # Initialize sync token for a resource (required for first-time use)
 # This handles the "Sync token invalid or too old" error
 utka events sync --gid <resource_gid>
 
-# Get events for any resource (project, task, portfolio, etc.)
+# Get all events for any resource (automatically fetches all pages)
 utka events get --gid <resource_gid>
 
 # Get events with a sync token (for incremental updates)
 utka events get --gid <resource_gid> --sync <sync_token>
+
+# Filter events using expressions
+utka events get --gid <resource_gid> -f 'event.action == "changed"'
+utka events get --gid <resource_gid> -f 'event.change.field == "custom_fields"'
+utka events get --gid <resource_gid> -f 'event.change.new_value.gid == "123456"'
 
 # Poll events continuously (real-time monitoring)
 utka events poll --gid <resource_gid>                      # Default 5s interval
 utka events poll --gid <resource_gid> --interval 10s       # Custom interval
 utka events poll --gid <resource_gid> --sync <sync_token>  # Start from sync point
 ```
+
+#### Filtering Events
+
+The `events get` command supports powerful filter expressions using the `-f` flag:
+
+```bash
+# Filter by action type
+utka events get --gid <resource_gid> -f 'event.action == "changed"'
+utka events get --gid <resource_gid> -f 'event.action == "added"'
+
+# Filter by resource type and subtype
+utka events get --gid <resource_gid> -f 'event.resource.resource_subtype == "default_task"'
+
+# Filter by change fields
+utka events get --gid <resource_gid> -f 'event.change.field == "completed"'
+utka events get --gid <resource_gid> -f 'event.change.field == "name"'
+
+# Filter by custom field changes
+utka events get --gid <resource_gid> -f 'event.change.new_value.gid == "1234567890"'
+utka events get --gid <resource_gid> -f 'event.change.new_value.display_value == "In Progress"'
+
+# Complex filters with multiple conditions
+utka events get --gid <resource_gid> -f 'event.action == "changed" && event.change.field == "custom_fields"'
+utka events get --gid <resource_gid> -f 'event.action == "changed" && event.user.name == "John Doe"'
+```
+
+Note: Filters use lowercase field names and safely handle nil values by skipping events that cause evaluation errors.
 
 #### Understanding Sync Tokens
 
@@ -187,6 +219,7 @@ The Asana Events API uses sync tokens to track your position in the event stream
 1. **First Time**: Use `utka events sync` to initialize and get your first sync token
 2. **Incremental Updates**: Use the sync token from previous responses to get only new events
 3. **Token Expired**: If you get a 412 error, run `utka events sync` again to refresh
+4. **Pagination**: The `events get` command automatically fetches all pages when `has_more` is true
 
 ## Examples
 
