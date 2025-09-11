@@ -138,3 +138,29 @@ func (wm *WebhookManager) Update(webhookGID string, filters []WebhookFilter) (*W
 
 	return response.Data, nil
 }
+
+func (wm *WebhookManager) UpdateFilters(webhookGID string, filters []WebhookFilter) (*Webhook, error) {
+	endpoint := fmt.Sprintf("/webhooks/%s", webhookGID)
+
+	// Create update request with only filters field
+	// Using a map to ensure we only send the filters field
+	updateData := map[string]interface{}{
+		"filters": filters,
+	}
+
+	reqBody := map[string]interface{}{
+		"data": updateData,
+	}
+
+	respBody, err := wm.client.Put(endpoint, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update webhook filters: %w", err)
+	}
+
+	var response WebhookResponse
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return response.Data, nil
+}
