@@ -291,6 +291,168 @@ var webhookFilterEditCmd = &cobra.Command{
 	},
 }
 
+var webhookFilterDeleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete a filter from a webhook",
+	Long:  `Delete a specific filter from a webhook by its GID.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		gid, _ := cmd.Flags().GetString("gid")
+		if gid == "" {
+			log.Fatal("Webhook GID is required")
+		}
+
+		// Get current webhook to see existing filters
+		webhook, err := webhookManager.Get(gid)
+		if err != nil {
+			log.Fatalf("Failed to get webhook: %v", err)
+		}
+
+		filters := webhook.Filters
+
+		if len(filters) == 0 {
+			fmt.Println("No filters found on this webhook")
+			return
+		}
+
+		if len(filters) == 1 {
+			// Single filter, ask for confirmation
+			filter := filters[0]
+			fmt.Printf("Delete filter: Action: %s, Resource Type: %s, Resource Subtype: %s? (y/N): ",
+				filter.Action, filter.ResourceType, filter.ResourceSubtype)
+
+			var response string
+			fmt.Scanln(&response)
+			if response != "y" && response != "Y" {
+				fmt.Println("Filter deletion cancelled")
+				return
+			}
+
+			filters = []webhooks.WebhookFilter{}
+		} else {
+			// Multiple filters, prompt for which one to delete
+			fmt.Println("Multiple filters found:")
+			for i, filter := range filters {
+				fmt.Printf("%d. Action: %s, Resource Type: %s, Resource Subtype: %s\n",
+					i+1, filter.Action, filter.ResourceType, filter.ResourceSubtype)
+			}
+
+			var choice int
+			fmt.Print("Enter the number of the filter to delete: ")
+			_, err := fmt.Scanf("%d", &choice)
+			if err != nil {
+				log.Fatalf("Failed to read input: %v", err)
+			}
+
+			if choice < 1 || choice > len(filters) {
+				log.Fatal("Invalid choice")
+			}
+
+			// Remove the selected filter
+			filters = append(filters[:choice-1], filters[choice:]...)
+		}
+
+		// Update the webhook with the modified filters list
+		webhook, err = webhookManager.UpdateFilters(gid, filters)
+		if err != nil {
+			log.Fatalf("Failed to delete filter from webhook: %v", err)
+		}
+
+		fmt.Println("Filter deleted successfully:")
+		printJSON(webhook)
+	},
+}
+
+var webhookStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show webhook delivery status and health details",
+	Long:  `Display detailed information about webhook delivery success, failures, and retry status.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		gid, _ := cmd.Flags().GetString("gid")
+		if gid == "" {
+			log.Fatal("Webhook GID is required")
+		}
+
+		webhook, err := webhookManager.Get(gid)
+		if err != nil {
+			log.Fatalf("Failed to get webhook: %v", err)
+		}
+
+		// Display webhook status information
+		fmt.Printf("Webhook Status for GID: %s\n", webhook.GID)
+		fmt.Printf("=====================================\n\n")
+
+		// Basic info
+		fmt.Printf("Target URL: %s\n", webhook.Target)
+		fmt.Printf("Active: %v\n", webhook.Active)
+		if webhook.Resource != nil {
+			fmt.Printf("Resource: %s (%s)", webhook.Resource.GID, webhook.Resource.ResourceType)
+			if webhook.Resource.Name != "" {
+				fmt.Printf(" - %s", webhook.Resource.Name)
+			}
+			fmt.Println()
+		}
+		fmt.Printf("Created: %s\n", webhook.CreatedAt)
+		fmt.Printf("Is Workspace Webhook: %v\n\n", webhook.IsWorkspaceWebhook)
+
+		// Delivery status
+		fmt.Printf("Delivery Status\n")
+		fmt.Printf("---------------\n")
+
+		if webhook.LastSuccessAt != "" {
+			fmt.Printf("Last Success: %s\n", webhook.LastSuccessAt)
+		} else {
+			fmt.Printf("Last Success: Never\n")
+		}
+
+		if webhook.LastFailureAt != "" {
+			fmt.Printf("Last Failure: %s\n", webhook.LastFailureAt)
+			fmt.Printf("Retry Count: %d\n", webhook.DeliveryRetryCount)
+
+			if webhook.NextAttemptAfter != "" {
+				fmt.Printf("Next Retry: %s\n", webhook.NextAttemptAfter)
+			}
+
+			if webhook.FailureDeletionTimestamp != "" {
+				fmt.Printf("Will be deleted if failing until: %s\n", webhook.FailureDeletionTimestamp)
+			}
+
+			if webhook.LastFailureContent != "" {
+				fmt.Printf("\nLast Failure Details:\n")
+				fmt.Printf("--------------------\n")
+				fmt.Println(webhook.LastFailureContent)
+			}
+		} else {
+			fmt.Printf("Last Failure: None\n")
+		}
+
+		// Show filters if present
+		if len(webhook.Filters) > 0 {
+			fmt.Printf("\nActive Filters\n")
+			fmt.Printf("--------------\n")
+			for i, filter := range webhook.Filters {
+				fmt.Printf("%d. Resource Type: %s", i+1, filter.ResourceType)
+				if filter.ResourceSubtype != "" {
+					fmt.Printf(", Subtype: %s", filter.ResourceSubtype)
+				}
+				if filter.Action != "" {
+					fmt.Printf(", Action: %s", filter.Action)
+				}
+				if len(filter.Fields) > 0 {
+					fmt.Printf(", Fields: %v", filter.Fields)
+				}
+				fmt.Println()
+			}
+		}
+
+		// Option to show full JSON
+		if jsonOutput, _ := cmd.Flags().GetBool("json"); jsonOutput {
+			fmt.Printf("\nFull JSON Response:\n")
+			fmt.Printf("------------------\n")
+			printJSON(webhook)
+		}
+	},
+}
+
 func init() {
 	webhookListCmd.Flags().String("workspace", "", "Workspace GID")
 	webhookListCmd.Flags().String("resource", "", "Resource GID")
@@ -321,8 +483,16 @@ func init() {
 	webhookFilterEditCmd.Flags().String("resource-subtype", "", "Resource subtype for the filter")
 	webhookFilterEditCmd.MarkFlagRequired("gid")
 
+	webhookFilterDeleteCmd.Flags().String("gid", "", "Webhook GID")
+	webhookFilterDeleteCmd.MarkFlagRequired("gid")
+
+	webhookStatusCmd.Flags().String("gid", "", "Webhook GID")
+	webhookStatusCmd.Flags().Bool("json", false, "Show full JSON response")
+	webhookStatusCmd.MarkFlagRequired("gid")
+
 	webhookFilterCmd.AddCommand(webhookFilterAddCmd)
 	webhookFilterCmd.AddCommand(webhookFilterEditCmd)
+	webhookFilterCmd.AddCommand(webhookFilterDeleteCmd)
 
 	webhookCmd.AddCommand(webhookListCmd)
 	webhookCmd.AddCommand(webhookGetCmd)
@@ -330,6 +500,7 @@ func init() {
 	webhookCmd.AddCommand(webhookDeleteCmd)
 	webhookCmd.AddCommand(webhookEditCmd)
 	webhookCmd.AddCommand(webhookFilterCmd)
+	webhookCmd.AddCommand(webhookStatusCmd)
 
 	rootCmd.AddCommand(webhookCmd)
 }

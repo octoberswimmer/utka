@@ -17,17 +17,25 @@ func NewWebhookManager(c *client.Client) *WebhookManager {
 }
 
 type Webhook struct {
-	GID       string           `json:"gid,omitempty"`
-	Resource  *WebhookResource `json:"resource,omitempty"`
-	Target    string           `json:"target,omitempty"`
-	Active    bool             `json:"active"`
-	CreatedAt string           `json:"created_at,omitempty"`
-	Filters   []WebhookFilter  `json:"filters,omitempty"`
+	GID                      string           `json:"gid,omitempty"`
+	Resource                 *WebhookResource `json:"resource,omitempty"`
+	Target                   string           `json:"target,omitempty"`
+	Active                   bool             `json:"active"`
+	CreatedAt                string           `json:"created_at,omitempty"`
+	Filters                  []WebhookFilter  `json:"filters,omitempty"`
+	LastSuccessAt            string           `json:"last_success_at,omitempty"`
+	LastFailureAt            string           `json:"last_failure_at,omitempty"`
+	LastFailureContent       string           `json:"last_failure_content,omitempty"`
+	DeliveryRetryCount       int              `json:"delivery_retry_count,omitempty"`
+	NextAttemptAfter         string           `json:"next_attempt_after,omitempty"`
+	FailureDeletionTimestamp string           `json:"failure_deletion_timestamp,omitempty"`
+	IsWorkspaceWebhook       bool             `json:"is_workspace_webhook,omitempty"`
 }
 
 type WebhookResource struct {
 	GID          string `json:"gid"`
 	ResourceType string `json:"resource_type,omitempty"`
+	Name         string `json:"name,omitempty"`
 }
 
 type WebhookFilter struct {
