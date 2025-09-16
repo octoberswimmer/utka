@@ -58,17 +58,21 @@ type WebhooksListResponse struct {
 }
 
 func (wm *WebhookManager) Create(resourceGID, targetURL string, filters []WebhookFilter) (*Webhook, error) {
-	webhook := &Webhook{
-		Resource: &WebhookResource{
-			GID: resourceGID,
-		},
-		Target:  targetURL,
-		Active:  true,
-		Filters: filters,
+	// Prepare form data
+	formData := url.Values{}
+	formData.Add("resource", resourceGID)
+	formData.Add("target", targetURL)
+
+	// Add filters if provided
+	if len(filters) > 0 {
+		filtersJSON, err := json.Marshal(filters)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal filters: %w", err)
+		}
+		formData.Add("filters", string(filtersJSON))
 	}
 
-	reqBody := WebhookRequest{Data: webhook}
-	respBody, err := wm.client.Post("/webhooks", reqBody)
+	respBody, err := wm.client.PostForm("/webhooks", formData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create webhook: %w", err)
 	}

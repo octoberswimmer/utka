@@ -91,6 +91,44 @@ func (c *Client) Post(endpoint string, body interface{}) ([]byte, error) {
 	return c.doRequest("POST", endpoint, nil, body)
 }
 
+func (c *Client) PostForm(endpoint string, formData url.Values) ([]byte, error) {
+	fullURL := c.baseURL + endpoint
+
+	req, err := http.NewRequest("POST", fullURL, strings.NewReader(formData.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		var errorResp struct {
+			Errors []struct {
+				Message string `json:"message"`
+			} `json:"errors"`
+		}
+		if err := json.Unmarshal(respBody, &errorResp); err == nil && len(errorResp.Errors) > 0 {
+			return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, errorResp.Errors[0].Message)
+		}
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+
+	return respBody, nil
+}
+
 func (c *Client) Put(endpoint string, body interface{}) ([]byte, error) {
 	return c.doRequest("PUT", endpoint, nil, body)
 }
