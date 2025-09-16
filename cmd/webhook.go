@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/octoberswimmer/utka/webhooks"
+	"github.com/octoberswimmer/utka/workspaces"
 	"github.com/spf13/cobra"
 )
 
@@ -18,17 +19,58 @@ var webhookCmd = &cobra.Command{
 var webhookListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List webhooks",
-	Long:  `List all webhooks, optionally filtered by workspace or resource.`,
+	Long: `List all webhooks, optionally filtered by workspace or resource.
+
+If no workspace is specified, webhooks from all accessible workspaces will be listed.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		workspace, _ := cmd.Flags().GetString("workspace")
 		resource, _ := cmd.Flags().GetString("resource")
 
-		webhooks, err := webhookManager.List(workspace, resource)
-		if err != nil {
-			log.Fatalf("Failed to list webhooks: %v", err)
-		}
+		// If no workspace specified, fetch all workspaces and list webhooks for each
+		if workspace == "" && resource == "" {
+			workspaceManager := workspaces.NewWorkspaceManager(asanaClient)
+			workspaceList, err := workspaceManager.List()
+			if err != nil {
+				log.Fatalf("Failed to list workspaces: %v", err)
+			}
 
-		printJSON(webhooks)
+			if len(workspaceList) == 0 {
+				fmt.Println("No workspaces found")
+				return
+			}
+
+			// Collect all webhooks from all workspaces
+			var allWebhooks []webhooks.Webhook
+			for _, ws := range workspaceList {
+				fmt.Printf("Fetching webhooks for workspace: %s (%s)...\n", ws.Name, ws.GID)
+				webhooksList, err := webhookManager.List(ws.GID, "")
+				if err != nil {
+					log.Printf("Warning: Failed to list webhooks for workspace %s: %v", ws.Name, err)
+					continue
+				}
+				allWebhooks = append(allWebhooks, webhooksList...)
+			}
+
+			// Print all webhooks
+			if len(allWebhooks) == 0 {
+				fmt.Println("\nNo webhooks found in any workspace")
+			} else {
+				fmt.Printf("\nTotal webhooks found: %d\n", len(allWebhooks))
+				printJSON(struct {
+					Data []webhooks.Webhook `json:"data"`
+				}{Data: allWebhooks})
+			}
+		} else {
+			// Original behavior when workspace or resource is specified
+			webhooksList, err := webhookManager.List(workspace, resource)
+			if err != nil {
+				log.Fatalf("Failed to list webhooks: %v", err)
+			}
+
+			printJSON(struct {
+				Data []webhooks.Webhook `json:"data"`
+			}{Data: webhooksList})
+		}
 	},
 }
 
@@ -454,7 +496,7 @@ var webhookStatusCmd = &cobra.Command{
 }
 
 func init() {
-	webhookListCmd.Flags().String("workspace", "", "Workspace GID")
+	webhookListCmd.Flags().String("workspace", "", "Workspace GID (optional, lists all workspaces if not provided)")
 	webhookListCmd.Flags().String("resource", "", "Resource GID")
 
 	webhookGetCmd.Flags().String("gid", "", "Webhook GID")
