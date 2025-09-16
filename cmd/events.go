@@ -90,7 +90,9 @@ Note: The filter will skip events where the expression cannot be evaluated.`,
 var eventsPollCmd = &cobra.Command{
 	Use:   "poll",
 	Short: "Poll events continuously",
-	Long:  `Continuously poll for events from a specific resource.`,
+	Long: `Continuously poll for events from a specific resource.
+
+If no sync token is provided, the command will automatically fetch one to start polling.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		resource, _ := cmd.Flags().GetString("gid")
 		syncToken, _ := cmd.Flags().GetString("sync")
@@ -98,6 +100,18 @@ var eventsPollCmd = &cobra.Command{
 
 		if resource == "" {
 			log.Fatal("Resource GID is required")
+		}
+
+		// If no sync token provided, get one automatically
+		if syncToken == "" {
+			fmt.Printf("No sync token provided. Fetching initial sync token for resource %s...\n", resource)
+			events, err := eventManager.InitializeSync(resource)
+			if err != nil {
+				log.Fatalf("Failed to initialize sync: %v", err)
+			}
+			syncToken = events.Sync
+			fmt.Printf("Got sync token: %s\n", syncToken)
+			fmt.Printf("Found %d events in current state\n\n", len(events.Data))
 		}
 
 		fmt.Printf("Starting to poll events for resource %s (interval: %v)...\n", resource, interval)
@@ -160,7 +174,7 @@ func init() {
 	eventsSyncCmd.MarkFlagRequired("gid")
 
 	eventsPollCmd.Flags().String("gid", "", "Resource GID (project, task, portfolio, etc.)")
-	eventsPollCmd.Flags().String("sync", "", "Initial sync token")
+	eventsPollCmd.Flags().String("sync", "", "Initial sync token (optional, will be fetched automatically if not provided)")
 	eventsPollCmd.Flags().Duration("interval", 5*time.Second, "Poll interval")
 	eventsPollCmd.MarkFlagRequired("gid")
 
