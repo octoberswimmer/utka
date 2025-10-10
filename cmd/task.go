@@ -186,6 +186,158 @@ func printTaskList(tasksList []tasks.Task) {
 	}
 }
 
+func printTaskDetails(task *tasks.Task) {
+	// Header with task name and status
+	status := "[ ]"
+	if task.Completed {
+		status = "[✓]"
+	}
+
+	taskType := ""
+	if task.ResourceSubtype == "milestone" {
+		taskType = " 🏁 Milestone"
+	}
+
+	fmt.Printf("%s %s%s\n", status, task.Name, taskType)
+	fmt.Println(strings.Repeat("=", 80))
+
+	// Basic Info
+	fmt.Printf("GID:         %s\n", task.GID)
+	fmt.Printf("URL:         https://app.asana.com/0/0/%s\n", task.GID)
+
+	if task.Assignee != nil && task.Assignee.Name != "" {
+		fmt.Printf("Assignee:    %s (GID: %s)\n", task.Assignee.Name, task.Assignee.GID)
+	}
+
+	// Dates
+	if task.StartOn != "" {
+		fmt.Printf("Start Date:  %s\n", task.StartOn)
+	} else if task.StartAt != "" {
+		fmt.Printf("Start Date:  %s\n", task.StartAt)
+	}
+
+	if task.DueOn != "" {
+		fmt.Printf("Due Date:    %s\n", task.DueOn)
+	} else if task.DueAt != "" {
+		fmt.Printf("Due Date:    %s\n", task.DueAt)
+	}
+
+	if task.CreatedAt != "" {
+		fmt.Printf("Created:     %s\n", task.CreatedAt)
+	}
+
+	if task.ModifiedAt != "" {
+		fmt.Printf("Modified:    %s\n", task.ModifiedAt)
+	}
+
+	if task.Completed && task.CompletedAt != "" {
+		completedBy := ""
+		if task.CompletedBy != nil && task.CompletedBy.Name != "" {
+			completedBy = fmt.Sprintf(" by %s", task.CompletedBy.Name)
+		}
+		fmt.Printf("Completed:   %s%s\n", task.CompletedAt, completedBy)
+	}
+
+	// Projects
+	if len(task.Projects) > 0 {
+		fmt.Printf("\nProjects:\n")
+		for _, project := range task.Projects {
+			fmt.Printf("  - %s (GID: %s)\n", project.Name, project.GID)
+		}
+	}
+
+	// Memberships (shows project + section)
+	if len(task.Memberships) > 0 {
+		fmt.Printf("\nSections:\n")
+		for _, membership := range task.Memberships {
+			projectName := ""
+			if membership.Project != nil {
+				projectName = membership.Project.Name
+			}
+			sectionName := ""
+			if membership.Section != nil {
+				sectionName = membership.Section.Name
+			}
+			if projectName != "" && sectionName != "" {
+				fmt.Printf("  - %s / %s\n", projectName, sectionName)
+			} else if sectionName != "" {
+				fmt.Printf("  - %s\n", sectionName)
+			}
+		}
+	}
+
+	// Tags
+	if len(task.Tags) > 0 {
+		fmt.Printf("\nTags:\n")
+		for _, tag := range task.Tags {
+			if tag.Color != "" {
+				fmt.Printf("  - %s (%s)\n", tag.Name, tag.Color)
+			} else {
+				fmt.Printf("  - %s\n", tag.Name)
+			}
+		}
+	}
+
+	// Parent task
+	if task.Parent != nil && task.Parent.Name != "" {
+		fmt.Printf("\nParent Task: %s (GID: %s)\n", task.Parent.Name, task.Parent.GID)
+	}
+
+	// Subtasks
+	if task.NumSubtasks > 0 {
+		fmt.Printf("\nSubtasks:    %d\n", task.NumSubtasks)
+	}
+
+	// Dependencies
+	if len(task.Dependencies) > 0 {
+		fmt.Printf("\nDependencies (blocking this task):\n")
+		for _, dep := range task.Dependencies {
+			fmt.Printf("  - %s (GID: %s)\n", dep.Name, dep.GID)
+		}
+	}
+
+	// Dependents
+	if len(task.Dependents) > 0 {
+		fmt.Printf("\nDependents (blocked by this task):\n")
+		for _, dep := range task.Dependents {
+			fmt.Printf("  - %s (GID: %s)\n", dep.Name, dep.GID)
+		}
+	}
+
+	// Followers
+	if len(task.Followers) > 0 {
+		fmt.Printf("\nFollowers:\n")
+		for _, follower := range task.Followers {
+			fmt.Printf("  - %s (GID: %s)\n", follower.Name, follower.GID)
+		}
+	}
+
+	// Custom fields
+	if len(task.CustomFields) > 0 {
+		fmt.Printf("\nCustom Fields:\n")
+		for _, field := range task.CustomFields {
+			if field.DisplayValue != "" {
+				fmt.Printf("  - %s: %s\n", field.Name, field.DisplayValue)
+			} else if field.Value != nil {
+				fmt.Printf("  - %s: %v\n", field.Name, field.Value)
+			}
+		}
+	}
+
+	// Workspace
+	if task.Workspace != nil && task.Workspace.Name != "" {
+		fmt.Printf("\nWorkspace:   %s (GID: %s)\n", task.Workspace.Name, task.Workspace.GID)
+	}
+
+	// Notes (full text)
+	if task.Notes != "" {
+		fmt.Printf("\nNotes:\n")
+		fmt.Println(strings.Repeat("-", 80))
+		fmt.Println(task.Notes)
+		fmt.Println(strings.Repeat("-", 80))
+	}
+}
+
 var taskGetCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Get task details",
@@ -195,13 +347,19 @@ var taskGetCmd = &cobra.Command{
 		if gid == "" {
 			log.Fatal("Task GID is required")
 		}
+		jsonOutput, _ := cmd.Flags().GetBool("json")
 
 		task, err := taskManager.Get(gid)
 		if err != nil {
 			log.Fatalf("Failed to get task: %v", err)
 		}
 
-		printJSON(task)
+		if jsonOutput {
+			printJSON(task)
+			return
+		}
+
+		printTaskDetails(task)
 	},
 }
 
@@ -332,6 +490,7 @@ func init() {
 	taskListCmd.Flags().Bool("json", false, "Output as JSON")
 
 	taskGetCmd.Flags().String("gid", "", "Task GID")
+	taskGetCmd.Flags().Bool("json", false, "Output as JSON")
 	taskGetCmd.MarkFlagRequired("gid")
 
 	taskEditCmd.Flags().String("gid", "", "Task GID")
