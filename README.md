@@ -102,8 +102,8 @@ List, manage, and edit tasks within projects:
 # List all incomplete tasks in a project
 utka task list --project <project_gid>
 
-# Include completed tasks
-utka task list --project <project_gid> --completed
+# Include tasks completed in the last 7 days
+utka task list --project <project_gid> --completed 7
 
 # List tasks in a specific section
 utka task list --section <section_gid>
@@ -136,6 +136,8 @@ The task list displays:
 - Tags with colors
 - Notes (truncated)
 - Section grouping when available
+
+Pass `--completed 0` (the default) to show only incomplete tasks.
 
 ### Webhook Commands
 

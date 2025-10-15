@@ -30,7 +30,7 @@ var taskListCmd = &cobra.Command{
 		section, _ := cmd.Flags().GetString("section")
 		assignee, _ := cmd.Flags().GetString("assignee")
 		workspace, _ := cmd.Flags().GetString("workspace")
-		completed, _ := cmd.Flags().GetBool("completed")
+		completedDays, _ := cmd.Flags().GetInt("completed")
 		limit, _ := cmd.Flags().GetInt("limit")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 
@@ -64,11 +64,11 @@ var taskListCmd = &cobra.Command{
 
 		switch {
 		case project != "":
-			tasksList, err = taskManager.ListByProject(project, completed, limit)
+			tasksList, err = taskManager.ListByProject(project, completedDays, limit)
 		case section != "":
-			tasksList, err = taskManager.ListBySection(section, completed, limit)
+			tasksList, err = taskManager.ListBySection(section, completedDays, limit)
 		case assignee != "":
-			tasksList, err = taskManager.ListByAssignee(assignee, workspace, completed, limit)
+			tasksList, err = taskManager.ListByAssignee(assignee, workspace, completedDays, limit)
 		}
 
 		if err != nil {
@@ -485,7 +485,7 @@ func init() {
 	taskListCmd.Flags().String("section", "", "Section GID")
 	taskListCmd.Flags().String("assignee", "", "Assignee user GID")
 	taskListCmd.Flags().String("workspace", "", "Workspace GID (required with --assignee)")
-	taskListCmd.Flags().Bool("completed", false, "Include completed tasks")
+	taskListCmd.Flags().Int("completed", 0, "Include completed tasks from N days ago (0 for incomplete only)")
 	taskListCmd.Flags().Int("limit", 0, "Limit number of results (0 for all)")
 	taskListCmd.Flags().Bool("json", false, "Output as JSON")
 

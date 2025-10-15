@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/octoberswimmer/utka/client"
 )
@@ -112,11 +113,21 @@ type NextPage struct {
 	URI    string `json:"uri,omitempty"`
 }
 
-func (tm *TaskManager) ListByProject(projectGID string, completed bool, limit int) ([]Task, error) {
+func (tm *TaskManager) ListByProject(projectGID string, completedDays int, limit int) ([]Task, error) {
 	allTasks := []Task{}
 	params := url.Values{}
 	params.Add("project", projectGID)
-	params.Add("completed_since", "now") // Include all tasks
+
+	// Calculate completed_since timestamp
+	if completedDays > 0 {
+		// Get tasks completed in the last N days
+		completedSince := time.Now().AddDate(0, 0, -completedDays).UTC().Format(time.RFC3339)
+		params.Add("completed_since", completedSince)
+	} else {
+		// Only get incomplete tasks
+		params.Add("completed_since", "now")
+	}
+
 	if limit > 0 {
 		params.Add("limit", fmt.Sprintf("%d", limit))
 	}
@@ -134,9 +145,10 @@ func (tm *TaskManager) ListByProject(projectGID string, completed bool, limit in
 			return nil, fmt.Errorf("failed to parse response: %w", err)
 		}
 
-		// Filter based on completed status if needed
+		// When completedDays is 0, filter out completed tasks
+		// When completedDays > 0, include all tasks (completed and incomplete)
 		for _, task := range response.Data {
-			if completed || !task.Completed {
+			if completedDays > 0 || !task.Completed {
 				allTasks = append(allTasks, task)
 			}
 		}
@@ -151,12 +163,22 @@ func (tm *TaskManager) ListByProject(projectGID string, completed bool, limit in
 	return allTasks, nil
 }
 
-func (tm *TaskManager) ListByAssignee(assigneeGID string, workspaceGID string, completed bool, limit int) ([]Task, error) {
+func (tm *TaskManager) ListByAssignee(assigneeGID string, workspaceGID string, completedDays int, limit int) ([]Task, error) {
 	allTasks := []Task{}
 	params := url.Values{}
 	params.Add("assignee", assigneeGID)
 	params.Add("workspace", workspaceGID)
-	params.Add("completed_since", "now") // Include all tasks
+
+	// Calculate completed_since timestamp
+	if completedDays > 0 {
+		// Get tasks completed in the last N days
+		completedSince := time.Now().AddDate(0, 0, -completedDays).UTC().Format(time.RFC3339)
+		params.Add("completed_since", completedSince)
+	} else {
+		// Only get incomplete tasks
+		params.Add("completed_since", "now")
+	}
+
 	if limit > 0 {
 		params.Add("limit", fmt.Sprintf("%d", limit))
 	}
@@ -174,9 +196,10 @@ func (tm *TaskManager) ListByAssignee(assigneeGID string, workspaceGID string, c
 			return nil, fmt.Errorf("failed to parse response: %w", err)
 		}
 
-		// Filter based on completed status if needed
+		// When completedDays is 0, filter out completed tasks
+		// When completedDays > 0, include all tasks (completed and incomplete)
 		for _, task := range response.Data {
-			if completed || !task.Completed {
+			if completedDays > 0 || !task.Completed {
 				allTasks = append(allTasks, task)
 			}
 		}
@@ -191,11 +214,21 @@ func (tm *TaskManager) ListByAssignee(assigneeGID string, workspaceGID string, c
 	return allTasks, nil
 }
 
-func (tm *TaskManager) ListBySection(sectionGID string, completed bool, limit int) ([]Task, error) {
+func (tm *TaskManager) ListBySection(sectionGID string, completedDays int, limit int) ([]Task, error) {
 	allTasks := []Task{}
 	params := url.Values{}
 	params.Add("section", sectionGID)
-	params.Add("completed_since", "now") // Include all tasks
+
+	// Calculate completed_since timestamp
+	if completedDays > 0 {
+		// Get tasks completed in the last N days
+		completedSince := time.Now().AddDate(0, 0, -completedDays).UTC().Format(time.RFC3339)
+		params.Add("completed_since", completedSince)
+	} else {
+		// Only get incomplete tasks
+		params.Add("completed_since", "now")
+	}
+
 	if limit > 0 {
 		params.Add("limit", fmt.Sprintf("%d", limit))
 	}
@@ -213,9 +246,10 @@ func (tm *TaskManager) ListBySection(sectionGID string, completed bool, limit in
 			return nil, fmt.Errorf("failed to parse response: %w", err)
 		}
 
-		// Filter based on completed status if needed
+		// When completedDays is 0, filter out completed tasks
+		// When completedDays > 0, include all tasks (completed and incomplete)
 		for _, task := range response.Data {
-			if completed || !task.Completed {
+			if completedDays > 0 || !task.Completed {
 				allTasks = append(allTasks, task)
 			}
 		}
