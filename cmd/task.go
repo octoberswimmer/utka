@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/octoberswimmer/utka/tasks"
 	"github.com/spf13/cobra"
@@ -223,7 +224,7 @@ func printTaskDetails(task *tasks.Task) {
 	}
 
 	if task.CreatedAt != "" {
-		fmt.Printf("Created:     %s\n", task.CreatedAt)
+		fmt.Printf("Created:     %s\n", formatLocalTime(task.CreatedAt))
 	}
 
 	if task.ModifiedAt != "" {
@@ -235,7 +236,7 @@ func printTaskDetails(task *tasks.Task) {
 		if task.CompletedBy != nil && task.CompletedBy.Name != "" {
 			completedBy = fmt.Sprintf(" by %s", task.CompletedBy.Name)
 		}
-		fmt.Printf("Completed:   %s%s\n", task.CompletedAt, completedBy)
+		fmt.Printf("Completed:   %s%s\n", formatLocalTime(task.CompletedAt), completedBy)
 	}
 
 	// Projects
@@ -516,4 +517,12 @@ func init() {
 	taskCmd.AddCommand(taskUncompleteCmd)
 
 	rootCmd.AddCommand(taskCmd)
+}
+
+func formatLocalTime(timestamp string) string {
+	t, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		return timestamp
+	}
+	return t.In(time.Local).Format("2006-01-02 15:04:05 MST")
 }
